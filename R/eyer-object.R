@@ -16,7 +16,7 @@
 #'    - fixations
 #'    - diameter
 #'    - gaze
-#' - info: list with eyetracker specific settings, suhc as recording frequency, recorded eye etc.
+#' - info: list with eyetracker specific settings, such as recording frequency, recorded eye etc.
 #'    - start_time: start time of the first recording in datetime
 #'    - resolution: monitor resolution as a list with width, height fields
 #'    - eyetracker: string with name of the recording device
@@ -29,15 +29,17 @@
 #' @export
 #'
 #' @examples
-EyerObject <- function(){
+EyerObject <- function() {
   obj <- list()
   obj$data <- list()
   obj$data$events <- data.frame()
   obj$data$fixations <- data.frame()
   obj$data$gaze <- data.frame()
-  obj$info <- list(resolution = list(width=NA, height=NA),
-                   eyetracker = character(0),
-                   start_time = numeric(0))
+  obj$info <- list(
+    resolution = list(width = NA, height = NA),
+    eyetracker = character(0),
+    start_time = NA
+  )
   class(obj) <- append(class(obj), "eyer")
   return(obj)
 }
@@ -46,11 +48,11 @@ EyerObject <- function(){
 #'
 #' @param obj object to check
 #'
-#' @return
+#' @return logical
 #' @export
 #'
 #' @examples
-is.eyer <- function(obj){
+is.eyer <- function(obj) {
   return("eyer" %in% attributes(obj)$class)
 }
 
@@ -62,28 +64,28 @@ is.eyer <- function(obj){
 #' @export
 #'
 #' @examples
-is_valid_eyer <- function(obj){
-  if(!is.eyer(obj)){
+is_valid_eyer <- function(obj) {
+  if (!is.eyer(obj)) {
     warning("object doesn't have eyer class")
     return(FALSE)
   }
-  if(length(obj$info$start_time) != 1){
+  if (length(obj$info$start_time) != 1) {
     warning("object doesn't have valid start time")
     return(FALSE)
   }
   ## FIXATIONS
-  # Chcks validity of fixations in case there is one
-  if(nrow(obj$data$fixations) > 0){
+  # Checks validity of fixations in case there is one
+  if (nrow(obj$data$fixations) > 0) {
     required_fixation_columns <- c("x", "y", "time", "duration")
-    if(!all(required_fixation_columns %in% names(obj$data$fixations))){
+    if (!all(required_fixation_columns %in% names(obj$data$fixations))) {
       warning("fixations don't have required", required_fixation_columns, " columns")
       return(FALSE)
     }
   }
   ## GAZE
-  if(nrow(obj$data$gaze) > 0){
+  if (nrow(obj$data$gaze) > 0) {
     required_gaze_columns <- c("x", "y", "time")
-    if(!all(required_gaze_columns %in% names(obj$data$gaze))){
+    if (!all(required_gaze_columns %in% names(obj$data$gaze))) {
       warning("gaze positions don't have required", required_gaze_columns, " columns")
       return(FALSE)
     }
@@ -101,11 +103,11 @@ is_valid_eyer <- function(obj){
 #' @param x x limits of the area as numeric(2)
 #' @param y y limits of the area as numeric(2)
 #'
-#' @return
+#' @return AreaObject
 #' @export
 #'
 #' @examples
-AreaObject <- function(name, x = numeric(2), y = numeric(2)){
+AreaObject <- function(name, x = numeric(2), y = numeric(2)) {
   obj <- list()
   obj$name <- name
   obj$type <- "square"
@@ -118,9 +120,15 @@ AreaObject <- function(name, x = numeric(2), y = numeric(2)){
   return(obj)
 }
 
-is_valid_area <- function(obj){
-  if(!("area" %in% attributes(obj)$class)) return(FALSE)
-  if(obj$points$xmin == obj$points$xmax) return(FALSE)
-  if(obj$points$ymin == obj$points$ymax) return(FALSE)
+is_valid_area <- function(obj) {
+  if (!("area" %in% attributes(obj)$class)) {
+    return(FALSE)
+  }
+  if (obj$points$xmin == obj$points$xmax) {
+    return(FALSE)
+  }
+  if (obj$points$ymin == obj$points$ymax) {
+    return(FALSE)
+  }
   return(TRUE)
 }

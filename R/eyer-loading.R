@@ -11,12 +11,12 @@
 #' @export
 #'
 #' @examples
-load_eyer_data <- function(folder, name = "", ...){
+load_eyer_data <- function(folder, name = "", ...) {
   obj <- EyerObject()
-  #checks if there are already computed files
+  # checks if there are already computed files
   ls_filepaths <- find_preprocessed_files(folder, name)
-  #if (overrúide) delete_preprocessed_files(ls_filepaths)
-  if(is.null(ls_filepaths$info)){
+  # if (override) delete_preprocessed_files(ls_filepaths)
+  if (is.null(ls_filepaths$info)) {
     warning("There are no info files of name ", name, " in folder", folder, "Returning NULL")
     return(NULL)
   }
@@ -30,10 +30,10 @@ load_eyer_data <- function(folder, name = "", ...){
 #'
 #' @return list with "fixations" and "events" fileds containing filepaths
 #' @examples
-find_preprocessed_files <- function(folder, name = ""){
-  #actually search for it
+find_preprocessed_files <- function(folder, name = "") {
+  # actually search for it
   ls <- list()
-  for(field in ALL_DATA_FIELDS){
+  for (field in ALL_DATA_FIELDS) {
     preprocessed_ptr <- paste0(name, "_eyer_", field)
     ls[[field]] <- find_file_or_null(folder, preprocessed_ptr)
   }
@@ -45,39 +45,41 @@ find_preprocessed_files <- function(folder, name = ""){
 #' @param folder where to look
 #' @param ptr pattern to search for
 #' @noRd
-find_file_or_null <- function(folder, ptr, allow_multiples = FALSE){
+find_file_or_null <- function(folder, ptr, allow_multiples = FALSE) {
   ptr <- paste("*", ptr, sep = "")
   filepath <- list.files(folder, pattern = ptr, full.names = TRUE)
-  if(length(filepath) == 0) return(NULL)
-  if(length(filepath) == 1) return(filepath)
-  if(allow_multiples){
+  if (length(filepath) == 0) {
+    return(NULL)
+  }
+  if (length(filepath) == 1) {
+    return(filepath)
+  }
+  if (allow_multiples) {
     return(filepath)
   } else {
     return(NULL)
   }
 }
 
-load_preprocessed_files <- function(obj, ls_filepaths){
-  for(field in c("fixations", "gaze", "diameter", "events")){
-    if(!is.null(ls_filepaths[[field]])){
+load_preprocessed_files <- function(obj, ls_filepaths) {
+  for (field in ALL_DATA_FIELDS) {
+    if (!is.null(ls_filepaths[[field]])) {
       message("Loading preprocessed ", field, " log at ", ls_filepaths[[field]])
       obj$data[[field]] <- read.table(ls_filepaths[[field]], sep = ";", header = TRUE)
     }
   }
-  if(!is.null(ls_filepaths$info)){
+  if (!is.null(ls_filepaths$info)) {
     message("Loading preprocessed info log ", ls_filepaths$gaze)
     obj$info <- jsonlite::read_json(ls_filepaths$info, simplifyVector = TRUE)
   }
   return(obj)
 }
 
-delete_preprocessed_files <- function(ls_filepaths){
-  if(file.exists(ls_filepaths$fixations)) {
-    message("Removing preprocessed fixations log ", ls_filepaths$fixations)
-    file.remove(ls_filepaths$fixations)
-  }
-  if(file.exists(ls_filepaths$events)) {
-    message("Removing preprocessed events log ", ls_filepaths$events)
-    file.remove(ls_filepaths$events)
+delete_preprocessed_files <- function(ls_filepaths) {
+  for (field in ALL_DATA_FIELDS) {
+    if (!is.null(ls_filepaths[[field]]) && file.exists(ls_filepaths[[field]])) {
+      message("Removing preprocessed ", field, " log ", ls_filepaths[[field]])
+      file.remove(ls_filepaths[[field]])
+    }
   }
 }
