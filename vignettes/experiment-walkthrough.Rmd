@@ -1,0 +1,145 @@
+---
+title: "Experiment Walkthrough"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Experiment Walkthrough}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(fig.width=8, fig.height=6)
+```
+
+This vignette demonstrates a typical workflow for analyzing eye-tracking data from an experiment using the `eyer` package. We will cover loading data, preprocessing, visualizing, and performing event-based analysis.
+
+## Loading Data
+
+First, we load the `eyer` package and the example data. The `eyer` package comes with example data that we can use.
+
+```{r setup}
+library(eyer)
+library(ggplot2)
+
+# Define the path to the example data
+data_path <- system.file("extdata", package = "eyer")
+
+# Load the data
+# We use the "test" prefix as the example files are named test_eyer_...
+obj <- load_eyer_data(data_path, "test")
+```
+
+For this walkthrough, we want to use a specific set of events that simulate a trial-based experiment. We have a separate events file for this. We will load it and replace the events in our `eyer` object.
+
+```{r load_events}
+# Load new events file
+events_file <- system.file("extdata", "test_eyer_events_v2.csv", package = "eyer")
+new_events <- read.table(events_file, sep = ";", header = TRUE, stringsAsFactors = FALSE)
+
+# Replace events in the object
+obj$data$events <- new_events
+
+# Let's inspect the events
+head(obj$data$events)
+```
+
+## Preprocessing
+
+Eye-tracking data often needs preprocessing. Common steps include downsampling to reduce data size and noise, and recalibrating if there was a drift.
+
+### Downsampling
+
+Let's downsample the data to 10Hz (assuming original is higher, e.g., 100Hz or more).
+
+```{r downsample}
+# Downsample to keep every 10th sample
+obj <- downsample(obj, n = 10)
+```
+
+## Visualization
+
+Visualizing the raw gaze data is crucial for a sanity check.
+
+```{r plot_gaze}
+plot_gaze(obj) + 
+  geom_eyer_monitor(obj) +
+  ggtitle("Raw Gaze Data")
+```
+
+We can also visualize specific trials. Let's look at "Trial_1".
+
+```{r plot_trial}
+# Filter data for Trial 1
+trial_start <- obj$data$events$time[obj$data$events$action == "start_trial" & obj$data$events$name == "Trial_1"]
+trial_end <- obj$data$events$time[obj$data$events$action == "end_trial" & obj$data$events$name == "Trial_1"]
+
+# We can use filter_times (if available) or subset manually. 
+# Here we will subset for plotting using standard ggplot2 filtering on the dataframe if needed, 
+# but eyer might have helpers. Let's stick to base R subsetting for clarity if helpers aren't obvious.
+
+# Actually, let's use the events to filter what we plot.
+plot_gaze(obj) +
+  geom_eyer_monitor(obj) +
+  coord_cartesian(xlim = c(0, 1920), ylim = c(0, 1080)) +
+  ggtitle("Gaze Data with Monitor Limits")
+```
+
+## Area of Interest (AOI) Analysis
+
+We often want to know if the participant looked at specific regions. Let's define a central square AOI and a top-left AOI.
+
+```{r define_aois}
+# Define AOIs
+center_aoi <- AreaObject("Center", x = c(760, 1160), y = c(340, 740)) # 400x400 square in center (1920x1080)
+top_left_aoi <- AreaObject("TopLeft", x = c(0, 400), y = c(680, 1080))
+
+# Add AOIs to the object
+obj <- add_area_column(obj, list(center_aoi, top_left_aoi))
+
+# Check if the area column was added
+head(obj$data$fixations)
+```
+
+Now we can calculate statistics for these areas.
+
+```{r analyze_areas}
+# Analyze fixations in areas
+fixation_stats <- analyse_fixation_areas(obj)
+print(fixation_stats)
+
+# Analyze gaze points in areas
+gaze_stats <- analyse_gaze_areas(obj)
+print(gaze_stats)
+```
+
+## Event-based Analysis
+
+We can analyze data relative to specific events, like stimulus onset.
+
+```{r event_analysis}
+# Let's calculate the number of fixations in the Center AOI during each image presentation.
+
+# Get image onset and offset times
+img_onsets <- obj$data$events[obj$data$events$action == "image_onset", ]
+img_offsets <- obj$data$events[obj$data$events$action == "image_offset", ]
+
+results <- data.frame()
+
+for(i in seq_len(nrow(img_onsets))) {
+  t_start <- img_onsets$time[i]
+  t_end <- img_offsets$time[i]
+  img_name <- img_onsets$name[i]
+  
+  # Filter fixations for this trial
+  trial_fixations <- obj$data$fixations[obj$data$fixations$time >= t_start & obj$data$fixations$time <= t_end, ]
+  
+  # Count fixations in Center
+  n_center <- sum(trial_fixations$area == "Center", na.rm = TRUE)
+  
+  results <- rbind(results, data.frame(image = img_name, fixations_in_center = n_center))
+}
+
+print(results)
+```
+
+This demonstrates a basic workflow for analyzing eye-tracking data with `eyer`.
